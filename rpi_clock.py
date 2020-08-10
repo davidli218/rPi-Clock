@@ -2,14 +2,14 @@
 Raspberry Pi Clock
 A multi functional LED display clock built by Raspberry Pi.
 
-Date:2020/08/10 David Li <david_ri@163.com>
+Date:2020/08/11 David Li <david_ri@163.com>
 """
 
 import RPi.GPIO as GPIO
 import time
 
 SYS_NAME = "Raspberry Pi Clock"
-SYS_VERSION = "0.1"
+SYS_VERSION = "0.15"
 
 SYS_TOTAL_TASK = 2
 SYS_INTERRUPT = False
@@ -20,7 +20,6 @@ def sys_interrupt(_):
     """Interrupt the task on main thread"""
     global SYS_INTERRUPT
     SYS_INTERRUPT = True
-    print('* SYSTEM INTERRUPT *')
 
 
 def task_switcher():
@@ -66,23 +65,42 @@ def display_7seg(txt: str, digs, segs, ns):
 
 
 class Clock:
-    """Simple clock"""
-    status = 0
+    """Clock mode"""
+    current_status = 0
+    total_status = 2
 
     def __init__(self, digs, segs, ns, ctrl_but):
-        GPIO.add_event_detect(ctrl_but, GPIO.RISING, bouncetime=200)
+        GPIO.add_event_detect(ctrl_but, GPIO.RISING, callback=self.next_mode, bouncetime=200)
+
+        self.digs = digs
+        self.segs = segs
+        self.ns = ns
 
         while not SYS_INTERRUPT:
-            now = time.ctime()[11:19]  # Current time
-            now = now[:2] + ('' if int(now[-2:]) % 2 else '.') + now[3:5]  # Display form
-            display_7seg(now, digs, segs, ns)
+            self.time_mode()
+            self.date_mode()
 
         GPIO.remove_event_detect(ctrl_but)
 
+    def time_mode(self):
+        while not SYS_INTERRUPT and self.current_status == 0:
+            now = time.ctime()[11:19]  # Current time
+            now = now[:2] + ('' if int(now[-2:]) % 2 else '.') + now[3:5]  # Display form
+            display_7seg(now, self.digs, self.segs, self.ns)
+
+    def date_mode(self):
+        while not SYS_INTERRUPT and self.current_status == 1:
+            date = time.strftime("%m.%d", time.localtime())  # Current date
+            display_7seg(date, self.digs, self.segs, self.ns)
+
+    def next_mode(self, _):
+        self.current_status = (self.current_status + 1) % self.total_status
+
 
 class Timer:
-    """Simple timer"""
-    status = 0
+    """Timer mode"""
+    current_status = 0
+    total_status = 3
 
     def __init__(self, digs, segs, ns, ctrl_but):
         GPIO.add_event_detect(ctrl_but, GPIO.RISING, callback=self.next_status, bouncetime=200)
@@ -92,7 +110,7 @@ class Timer:
             for seg_i in range(7):
                 GPIO.output(segs[seg_i], ns['0'][seg_i])
 
-            while not SYS_INTERRUPT and self.status == 0:
+            while not SYS_INTERRUPT and self.current_status == 0:
                 if time.time() % 1 * 100 > 50:
                     display_7seg('00.00', digs, segs, ns)
                 else:
@@ -101,13 +119,13 @@ class Timer:
             '''Start'''
             time_start = time.time()
 
-            while not SYS_INTERRUPT and self.status == 1:
+            while not SYS_INTERRUPT and self.current_status == 1:
                 display_7seg(self.time_display_form(time.time() - time_start), digs, segs, ns)
 
             '''Result'''
             time_total = time.time() - time_start
 
-            while not SYS_INTERRUPT and self.status == 2:
+            while not SYS_INTERRUPT and self.current_status == 2:
                 if time.time() % 2 > 0.8:
                     display_7seg(self.time_display_form(time_total), digs, segs, ns)
                 else:
@@ -117,18 +135,15 @@ class Timer:
 
     @staticmethod
     def time_display_form(s):
-        if s < 10:
+        if s < 100:
             return f'{s:05.2f}'
-        elif s < 100:
-            return str(s)[:5]
         elif s < 6000:
             return f'{s // 60:02.0f}.{s % 60:02.0f}.'
         else:
             return 'Err.0'  # Time out
 
     def next_status(self, _):
-        self.status = (self.status + 1) % 3
-        print('Clock: Next status')
+        self.current_status = (self.current_status + 1) % self.total_status
 
 
 if __name__ == '__main__':
@@ -156,6 +171,8 @@ if __name__ == '__main__':
 
     buttons = [24, 25]
 
+    buzzer = 21
+
     nums = {' ': (1, 1, 1, 1, 1, 1, 1),
             '0': (0, 1, 0, 0, 0, 0, 0),
             '1': (1, 1, 1, 1, 0, 1, 0),
@@ -173,6 +190,7 @@ if __name__ == '__main__':
     GPIO.setup(digits, GPIO.OUT, initial=0)  # 0 Dark, 1 Light
     GPIO.setup(segments, GPIO.OUT, initial=1)  # 1 Dark, 0 Light
     GPIO.setup(buttons, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # Pull down
+    GPIO.setup(buzzer, GPIO.OUT)
 
     GPIO.add_event_detect(buttons[0], GPIO.RISING, callback=sys_interrupt, bouncetime=200)
 

@@ -4,14 +4,18 @@ A multi functional LED display clock built by Raspberry Pi.
 
 ## Feature List
 
-- Clock
-- Timer
+- Clock Mode
+  - Current time
+  - Current date
+- Timer Mode
+  * Maximum 6000s
 
 ## Hardware requirement
 
 - Raspberry Pi
-- 6 Pin 4 Digits 7 Segment LED Display (HS410361k-32)
+- 12 Pin 4 Digits 7 Segment LED Display (HS410361k-32)
 - Buttons
+- Buzzer
 
 ## Hardware connection
 
@@ -38,4 +42,4 @@ A multi functional LED display clock built by Raspberry Pi.
 | -------- | ------- | ----- |
 | BUTTON_1 | 5       | 24    |
 | BUTTON_2 | 6       | 25    |
-
+| BUZZER   | 29      | 21    |
