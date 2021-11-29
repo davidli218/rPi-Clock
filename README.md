@@ -2,8 +2,6 @@
 
 A multi functional LED display clock built by Raspberry Pi.
 
-Demo video: https://www.bilibili.com/video/BV1154y1i7TA/
-
 ## Feature List
 
 - Clock Mode
